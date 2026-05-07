@@ -1,0 +1,444 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Sword, 
+  Shield, 
+  Heart, 
+  Zap, 
+  ShoppingBag, 
+  ChevronRight, 
+  CheckCircle2, 
+  XCircle,
+  Play,
+  ArrowLeft,
+  BookOpen,
+  SwordIcon,
+  Flame,
+  Skull,
+  Ghost,
+  Settings,
+  User
+} from 'lucide-react';
+
+// --- DATABASE: Declinazioni Latine e Frasi ---
+const LATIN_DATA = {
+  1: [
+    { word: "Rosa", case: "Nominativo", translation: "La rosa", type: "word" },
+    { word: "Rosarum", case: "Genitivo", translation: "Delle rose", type: "word" },
+    { word: "Puella rosam amat", translation: "La fanciulla ama la rosa", type: "sentence" },
+    { word: "Insulae", case: "Genitivo/Dativo", translation: "Dell'isola / All'isola", type: "word" },
+    { word: "Nautae", case: "Nominativo Plurale", translation: "I marinai", type: "word" }
+  ],
+  2: [
+    { word: "Lupus", case: "Nominativo", translation: "Il lupo", type: "word" },
+    { word: "Amicus", case: "Nominativo", translation: "L'amico", type: "word" },
+    { word: "Dominus servum videt", translation: "Il padrone vede il servo", type: "sentence" },
+    { word: "Bellum", case: "Nominativo/Accusativo", translation: "La guerra", type: "word" },
+    { word: "Pueri in horto sunt", translation: "I fanciulli sono nel giardino", type: "sentence" }
+  ],
+  3: [
+    { word: "Rex", case: "Nominativo", translation: "Il re", type: "word" },
+    { word: "Regis", case: "Genitivo", translation: "Del re", type: "word" },
+    { word: "Milites pugnant", translation: "I soldati combattono", type: "sentence" },
+    { word: "Corpore", case: "Ablativo", translation: "Con il corpo", type: "word" },
+    { word: "Homines", case: "Nominativo/Accusativo Plurale", translation: "Gli uomini", type: "word" }
+  ],
+  4: [
+    { word: "Manuum", case: "Genitivo", translation: "Delle mani", type: "word" },
+    { word: "Exercitus", case: "Nominativo", translation: "L'esercito", type: "word" },
+    { word: "Exercitus pugnat", translation: "L'esercito combatte", type: "sentence" },
+    { word: "Genu", case: "Nominativo/Accusativo", translation: "Il ginocchio", type: "word" }
+  ],
+  5: [
+    { word: "Dies", case: "Nominativo", translation: "Il giorno", type: "word" },
+    { word: "Res", case: "Nominativo", translation: "La cosa", type: "word" },
+    { word: "Fidei", case: "Genitivo/Dativo", translation: "Della fede / Alla fede", type: "word" },
+    { word: "Spes", case: "Nominativo", translation: "La speranza", type: "word" }
+  ]
+};
+
+const LEVELS = [
+  { id: 1, title: "Il Risveglio", decls: [1], description: "Dungeon di Grado E (1ª Declinazione)" },
+  { id: 2, title: "Foresta Rossa", decls: [1, 2], description: "Dungeon di Grado D (1ª-2ª Declinazione)" },
+  { id: 3, title: "Castello del Re", decls: [1, 2, 3], description: "Dungeon di Grado B (Mischia tutto)" },
+  { id: 4, title: "Il Varco del Vuoto", decls: [1, 2, 3, 4, 5], description: "Dungeon di Grado S (Tutte le declinazioni)" },
+];
+
+const ITEMS = [
+  { id: 'rasaka_fang', name: 'Zanna di Rasaka', price: 60, stat: 'Attacco +15', icon: <Sword className="w-5 h-5" />, type: 'atk' },
+  { id: 'knight_killer', name: 'Knight Killer', price: 150, stat: 'Attacco +35', icon: <SwordIcon className="w-5 h-5" />, type: 'atk' },
+  { id: 'demon_king_sword', name: 'Spada del Re Demone', price: 400, stat: 'Attacco +80', icon: <Flame className="w-5 h-5" />, type: 'atk' },
+  { id: 'high_orc_plate', name: 'Piastra di Alto Orco', price: 100, stat: 'Difesa +20', icon: <Shield className="w-5 h-5" />, type: 'def' },
+  { id: 'black_knight_armor', name: 'Armatura di Igris', price: 250, stat: 'Difesa +50', icon: <Shield className="w-5 h-5" />, type: 'def' },
+  { id: 'assassin_cloak', name: 'Mantello dell\'Assassino', price: 180, stat: 'Agilità +30', icon: <Zap className="w-5 h-5" />, type: 'agi' },
+  { id: 'monarch_heart', name: 'Cuore del Monarca', price: 600, stat: 'Agilità +100', icon: <Heart className="w-5 h-5" />, type: 'agi' },
+];
+
+const DIFFICULTIES = {
+  facile: { label: 'Facile', color: 'text-green-400', multiplier: 1.5, damage: 0.5 },
+  medio: { label: 'Medio', color: 'text-blue-400', multiplier: 1.0, damage: 1.0 },
+  difficile: { label: 'Difficile', color: 'text-orange-400', multiplier: 0.7, damage: 2.0 },
+  hardcore: { label: 'Hardcore', color: 'text-red-600', multiplier: 0.5, damage: 999 }
+};
+
+const GemIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#d46bff" />
+        <stop offset="50%" stopColor="#9b4dff" />
+        <stop offset="100%" stopColor="#6a2cff" />
+      </linearGradient>
+    </defs>
+    <polygon points="50,5 90,50 50,95 10,50" fill="url(#grad1)" stroke="#ffffff" strokeWidth="2" />
+  </svg>
+);
+
+const INITIAL_STATE = {
+  gems: 100,
+  hp: 100,
+  inventory: [],
+  stats: { atk: 0, def: 0, agi: 0 }
+};
+
+export default function App() {
+  const [difficulty, setDifficulty] = useState('medio');
+  const [view, setView] = useState('home'); 
+  const [mode, setMode] = useState(null); 
+  const [gameState, setGameState] = useState(INITIAL_STATE);
+  const [selectedDecls, setSelectedDecls] = useState([1]);
+  const [currentQuiz, setCurrentQuiz] = useState(null);
+  const [feedback, setFeedback] = useState(null); 
+
+  // --- PERSISTENZA PER DIFFICOLTÀ ---
+  useEffect(() => {
+    const saved = localStorage.getItem(`solo_latin_save_${difficulty}`);
+    if (saved) {
+      setGameState(JSON.parse(saved));
+    } else {
+      setGameState(INITIAL_STATE);
+    }
+  }, [difficulty]);
+
+  useEffect(() => {
+    localStorage.setItem(`solo_latin_save_${difficulty}`, JSON.stringify(gameState));
+  }, [gameState, difficulty]);
+
+  // --- LOGICA DI GIOCO ---
+  const calculateReward = () => {
+    const base = 10 + Math.floor(gameState.stats.atk / 2);
+    return Math.floor(base * DIFFICULTIES[difficulty].multiplier);
+  };
+
+  const calculateDamage = () => {
+    if (difficulty === 'hardcore') return 100;
+    const base = 20 - Math.floor(gameState.stats.def / 3);
+    return Math.floor(Math.max(5, base) * DIFFICULTIES[difficulty].damage);
+  };
+
+  const startQuiz = (customDecls = null) => {
+    const activeDecls = customDecls || selectedDecls;
+    const pool = activeDecls.flatMap(d => LATIN_DATA[d]);
+    const randomItem = pool[Math.floor(Math.random() * pool.length)];
+    
+    let type, options;
+    if (randomItem.type === 'sentence') {
+      type = 'translation';
+      const others = pool.filter(p => p.translation !== randomItem.translation).map(p => p.translation);
+      options = [randomItem.translation, ...others.slice(0, 3)].sort(() => 0.5 - Math.random());
+    } else {
+      type = Math.random() > 0.4 ? 'case' : 'translation';
+      if (type === 'case') {
+        const cases = ["Nominativo", "Genitivo", "Dativo", "Accusativo", "Vocativo", "Ablativo", "Nominativo Plurale"];
+        options = [randomItem.case, ...cases.filter(c => c !== randomItem.case).slice(0, 3)].sort(() => 0.5 - Math.random());
+      } else {
+        const others = pool.filter(p => p.translation !== randomItem.translation).map(p => p.translation);
+        options = [randomItem.translation, ...others.slice(0, 3)].sort(() => 0.5 - Math.random());
+      }
+    }
+    setCurrentQuiz({ ...randomItem, type, options });
+    setFeedback(null);
+    setView('quiz');
+  };
+
+  const handleAnswer = (answer) => {
+    const isCorrect = currentQuiz.type === 'case' 
+      ? answer === currentQuiz.case 
+      : answer === currentQuiz.translation;
+
+    if (isCorrect) {
+      const reward = calculateReward();
+      setFeedback({ correct: true, msg: `CRITICAL HIT! +${reward} Gemme` });
+      setGameState(prev => ({ ...prev, gems: prev.gems + reward }));
+    } else {
+      const dodged = Math.random() * 100 < gameState.stats.agi;
+      if (dodged) {
+        setFeedback({ correct: false, msg: "SCHIVATA! Nessun danno subito." });
+      } else {
+        const dmg = calculateDamage();
+        setFeedback({ correct: false, msg: difficulty === 'hardcore' ? "MORTE ISTANTANEA!" : `SCONFITTA. -${dmg} HP.` });
+        setGameState(prev => ({ ...prev, hp: Math.max(0, prev.hp - dmg) }));
+      }
+    }
+
+    setTimeout(() => {
+      if ((gameState.hp <= (calculateDamage() + 1) && !isCorrect) || (difficulty === 'hardcore' && !isCorrect)) {
+        setView('home');
+        setGameState(prev => ({ ...prev, hp: 100 }));
+      } else if (!isCorrect && gameState.hp <= 0) {
+        setView('home');
+        setGameState(prev => ({ ...prev, hp: 100 }));
+      } else {
+        startQuiz();
+      }
+    }, 1800);
+  };
+
+  const buyItem = (item) => {
+    if (gameState.gems >= item.price) {
+      const statType = item.type;
+      const value = parseInt(item.stat.match(/\d+/)[0]);
+      setGameState(prev => ({
+        ...prev,
+        gems: prev.gems - item.price,
+        inventory: [...prev.inventory, item],
+        stats: { ...prev.stats, [statType]: prev.stats[statType] + value }
+      }));
+    }
+  };
+
+  // --- SOTTO-COMPONENTI ---
+  const StatBox = ({ icon, val, label }) => (
+    <div className="flex flex-col items-center p-3 bg-slate-900/80 rounded-2xl border border-white/5 min-w-[70px]">
+      <div className="mb-1">{icon}</div>
+      <span className="text-xs font-black">{val}</span>
+      <span className="text-[8px] text-slate-500 font-bold tracking-widest">{label}</span>
+    </div>
+  );
+
+  const NavButton = ({ icon, label, active, onClick }) => (
+    <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-blue-400 scale-110' : 'text-slate-500'}`}>
+      {icon}
+      <span className="text-[8px] font-black uppercase tracking-wider">{label}</span>
+    </button>
+  );
+
+  // --- VISTE PRINCIPALI ---
+  const Home = () => (
+    <div className="flex flex-col items-center justify-center h-full space-y-8 p-6 text-center">
+      <div className="space-y-2">
+        <h1 className="text-5xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-blue-600 animate-pulse tracking-tighter">
+          SOLO LEVELING
+        </h1>
+        <p className="text-slate-400 uppercase tracking-[0.2em] text-[10px] font-bold">Sistema di Sviluppo Hunter</p>
+      </div>
+
+      <div className="w-full max-w-sm bg-slate-900/50 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div className="text-left">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">Difficoltà</div>
+          <div className={`font-black uppercase tracking-widest ${DIFFICULTIES[difficulty].color}`}>{DIFFICULTIES[difficulty].label}</div>
+        </div>
+        <div className="flex items-center gap-2">
+            <GemIcon size={18} />
+            <span className="font-black text-xl tracking-tight">{gameState.gems}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 w-full max-w-sm">
+        <button onClick={() => { setMode('lessons'); setView('selection'); }} className="flex items-center gap-4 p-5 bg-slate-900 border border-blue-500/30 rounded-2xl hover:bg-blue-900/30 transition-all text-left group">
+          <BookOpen className="w-8 h-8 text-blue-400 group-hover:scale-110 transition-transform" />
+          <div>
+            <div className="font-black uppercase text-sm">Lezioni di Grado</div>
+            <div className="text-[10px] text-slate-500 italic">"Sviluppa le tue abilità di base"</div>
+          </div>
+        </button>
+
+        <button onClick={() => { setMode('endless'); setView('selection'); }} className="flex items-center gap-4 p-5 bg-slate-900 border border-purple-500/30 rounded-2xl hover:bg-purple-900/30 transition-all text-left group">
+          <SwordIcon className="w-8 h-8 text-purple-400 group-hover:rotate-12 transition-transform" />
+          <div>
+            <div className="font-black uppercase text-sm">Gate Infinito</div>
+            <div className="text-[10px] text-slate-500 italic">"Scala la torre del sapere"</div>
+          </div>
+        </button>
+      </div>
+
+      <div className="flex gap-4">
+          <StatBox icon={<Sword className="text-red-500" size={16}/>} val={gameState.stats.atk} label="ATK" />
+          <StatBox icon={<Shield className="text-blue-500" size={16}/>} val={gameState.stats.def} label="DEF" />
+          <StatBox icon={<Zap className="text-yellow-500" size={16}/>} val={gameState.stats.agi} label="AGI" />
+      </div>
+    </div>
+  );
+
+  const Selection = () => (
+    <div className="p-6 space-y-6 max-w-xl mx-auto pb-24">
+      <div className="flex items-center gap-4">
+        <button onClick={() => setView('home')}><ArrowLeft /></button>
+        <h2 className="text-2xl font-black uppercase italic">{mode === 'lessons' ? 'Lezioni Hunter' : 'Seleziona Gate'}</h2>
+      </div>
+      <div className="space-y-3">
+        {mode === 'lessons' ? LEVELS.map(lvl => (
+          <div key={lvl.id} onClick={() => { setSelectedDecls(lvl.decls); startQuiz(lvl.decls); }} className="p-4 rounded-xl border border-white/10 bg-slate-900 hover:border-blue-500 transition-all cursor-pointer group">
+            <div className="flex justify-between items-center">
+              <div><div className="font-black text-blue-400 uppercase text-[10px]">Grado {lvl.id}</div><div className="font-bold">{lvl.title}</div></div>
+              <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100" />
+            </div>
+          </div>
+        )) : [1, 2, 3, 4, 5].map(num => (
+          <div key={num} onClick={() => setSelectedDecls(prev => prev.includes(num) ? prev.filter(n => n !== num) : [...prev, num])}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${selectedDecls.includes(num) ? 'bg-purple-600/20 border-purple-500' : 'bg-slate-900 border-white/10'}`}>
+            <span className="font-black uppercase text-sm tracking-tighter">{num}ª Declinazione</span>
+            {selectedDecls.includes(num) && <CheckCircle2 className="text-purple-400 w-5 h-5" />}
+          </div>
+        ))}
+      </div>
+      {mode === 'endless' && (
+        <button onClick={() => startQuiz()} disabled={selectedDecls.length === 0} className="w-full py-5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-purple-500/20 active:scale-95 transition-transform disabled:opacity-50">
+          Varca il Portale
+        </button>
+      )}
+    </div>
+  );
+
+  const QuizView = () => (
+    <div className="p-6 flex flex-col h-full max-w-xl mx-auto pb-32">
+      <div className="flex justify-between items-center mb-10">
+        <div className="w-2/3">
+           <div className="flex justify-between text-[8px] font-black uppercase mb-1 tracking-widest">
+             <span className="text-red-500">HP Hunter</span>
+             <span>{gameState.hp}%</span>
+           </div>
+           <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+             <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${gameState.hp}%` }} />
+           </div>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-white/10">
+          <GemIcon size={16} />
+          <span className="font-black text-sm">{gameState.gems}</span>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center text-center space-y-8">
+        <div className="space-y-4">
+          <div className="text-blue-500 font-black text-[9px] uppercase tracking-[0.4em] animate-pulse">Minaccia Rilevata</div>
+          <h3 className={`font-black italic drop-shadow-2xl ${currentQuiz?.type === 'sentence' ? 'text-2xl px-4' : 'text-5xl'}`}>
+            {currentQuiz?.word}
+          </h3>
+        </div>
+        <div className="w-full space-y-3">
+          {currentQuiz?.options.map((opt, i) => (
+            <button key={i} disabled={!!feedback} onClick={() => handleAnswer(opt)} className="w-full py-4 px-6 bg-slate-900 border border-white/5 rounded-2xl font-bold hover:border-blue-500 hover:bg-blue-900/10 transition-all text-left flex justify-between items-center group">
+              <span className="group-hover:text-white transition-colors">{opt}</span>
+              <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-[10px] text-slate-500 font-black group-hover:bg-blue-500 group-hover:text-white">{i+1}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const ShopView = () => (
+    <div className="p-6 space-y-6 max-w-xl mx-auto pb-24">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setView('home')}><ArrowLeft /></button>
+          <h2 className="text-2xl font-black uppercase italic">Armeria</h2>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-full border border-white/10">
+          <GemIcon size={18} />
+          <span className="font-black">{gameState.gems}</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3">
+        {ITEMS.map(item => {
+          const isOwned = gameState.inventory.find(i => i.id === item.id);
+          return (
+            <div key={item.id} className="p-4 bg-slate-900/50 rounded-2xl border border-white/5 flex items-center justify-between group hover:bg-slate-900 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-blue-400 group-hover:text-white transition-colors">
+                  {item.icon}
+                </div>
+                <div>
+                  <div className="font-black text-xs uppercase tracking-tight">{item.name}</div>
+                  <div className="text-[9px] text-blue-500 font-black uppercase">{item.stat}</div>
+                </div>
+              </div>
+              <button onClick={() => buyItem(item)} disabled={isOwned || gameState.gems < item.price} className={`px-4 py-2 rounded-xl font-black text-[9px] uppercase transition-all ${isOwned ? 'bg-slate-800 text-slate-500' : gameState.gems < item.price ? 'text-red-500 border border-red-900/50' : 'bg-blue-600 text-white shadow-lg active:scale-95'}`}>
+                {isOwned ? 'Acquistato' : `${item.price} G`}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const DifficultySelector = () => (
+    <div className="p-6 space-y-6 max-w-xl mx-auto pb-24">
+      <div className="flex items-center gap-4">
+        <button onClick={() => setView('home')}><ArrowLeft /></button>
+        <h2 className="text-2xl font-black uppercase italic">Livello Rischio</h2>
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+        {Object.entries(DIFFICULTIES).map(([key, data]) => (
+          <button 
+            key={key}
+            onClick={() => { setDifficulty(key); setView('home'); }}
+            className={`p-6 rounded-2xl border flex items-center justify-between transition-all ${
+              difficulty === key ? 'bg-slate-800 border-blue-500 ring-2 ring-blue-500/30' : 'bg-slate-900 border-white/5 opacity-60'
+            }`}
+          >
+            <div className="text-left">
+              <div className={`font-black text-xl uppercase ${data.color}`}>{data.label}</div>
+              <div className="text-[10px] text-slate-500 font-bold">
+                PREMIO: x{data.multiplier} | DANNO: x{data.damage}
+              </div>
+            </div>
+            {key === 'hardcore' && <Skull className="text-red-600" />}
+            {key === 'facile' && <Ghost className="text-green-500" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#020203] text-white font-sans overflow-hidden">
+      {/* Background Decor */}
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none opacity-20">
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-900/50 to-transparent" />
+        <div className="absolute top-1/4 left-1/4 w-[50%] h-[50%] bg-purple-600 blur-[180px] rounded-full animate-pulse" />
+      </div>
+
+      <main className="relative z-10 h-[calc(100vh-80px)] overflow-y-auto">
+        {view === 'home' && <Home />}
+        {view === 'selection' && <Selection />}
+        {view === 'quiz' && <QuizView />}
+        {view === 'shop' && <ShopView />}
+        {view === 'difficulty' && <DifficultySelector />}
+      </main>
+
+      {/* FEEDBACK OVERLAY */}
+      {feedback && (
+        <div className={`fixed bottom-[85px] left-0 right-0 z-[100] mx-4 p-4 rounded-2xl shadow-2xl border flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-300 backdrop-blur-xl ${feedback.correct ? 'bg-green-600/90 border-green-400' : 'bg-red-700/90 border-red-500'}`}>
+          <div className="p-2 bg-black/20 rounded-xl">
+            {feedback.correct ? <CheckCircle2 className="text-white" /> : <XCircle className="text-white" />}
+          </div>
+          <div className="flex flex-col">
+            <span className="font-black uppercase tracking-tight text-[10px] drop-shadow-md">Notifica Sistema</span>
+            <span className="font-bold text-sm opacity-90">{feedback.msg}</span>
+          </div>
+        </div>
+      )}
+
+      {/* NAVIGATION BAR */}
+      <nav className="fixed bottom-0 w-full bg-black/95 backdrop-blur-2xl border-t border-white/10 h-20 flex justify-around items-center z-50 px-2">
+        <NavButton icon={<Sword size={20} />} label="Hunter" active={view === 'home'} onClick={() => setView('home')} />
+        <NavButton icon={<ShoppingBag size={20} />} label="Shop" active={view === 'shop'} onClick={() => setView('shop')} />
+        <NavButton icon={<Settings size={20} />} label="Difficoltà" active={view === 'difficulty'} onClick={() => setView('difficulty')} />
+        <div className="flex flex-col items-center opacity-30 cursor-not-allowed">
+          <User size={20} className="text-slate-500" />
+          <span className="text-[7px] font-black uppercase mt-1 tracking-widest">S-Rank</span>
+        </div>
+      </nav>
+    </div>
+  );
+}
